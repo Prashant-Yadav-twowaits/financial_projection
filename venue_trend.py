@@ -1,3 +1,4 @@
+import io
 import streamlit as st
 import pandas as pd
 import numpy as np
@@ -130,17 +131,16 @@ def consolidate_projections(venues_data, all_dates):
 
     return consolidated.drop(columns=['Date'])
 
-def save_to_excel(venue_projections, consolidated_projection, sport):
+def save_to_excel_for_download(venue_projections, consolidated_projection, sport):
     """
-    Save individual venue projections and the consolidated projection to an Excel file
-    with a unique filename based on sport and timestamp.
-    Each venue will have its own sheet, and there will be a 'Consolidated' sheet.
+    Generates the Excel file in memory and returns it as bytes for download.
     """
     timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
     base_filename = f"{sport}_projection_{timestamp}.xlsx"
+    excel_buffer = io.BytesIO()
 
     try:
-        with pd.ExcelWriter(base_filename) as writer:
+        with pd.ExcelWriter(excel_buffer, engine='xlsxwriter') as writer:
             for i, (venue_data, period) in enumerate(venue_projections):
                 sheet_name = f"Venue {i+1} ({period} Months)"
                 venue_data.to_excel(writer, sheet_name=sheet_name, index=False)
@@ -148,13 +148,13 @@ def save_to_excel(venue_projections, consolidated_projection, sport):
             if consolidated_projection is not None and not consolidated_projection.empty:
                 consolidated_projection.to_excel(writer, sheet_name='Consolidated', index=False)
             else:
-                st.warning("Consolidated projection is empty and will not be saved.")
+                st.warning("Consolidated projection is empty and will not be included in the download.")
 
-        st.success(f"Successfully saved projections to {base_filename}")
-        return True
+        excel_buffer.seek(0)
+        return excel_buffer, base_filename
     except Exception as e:
-        st.error(f"Error saving to Excel: {e}")
-        return False
+        st.error(f"Error creating Excel file for download: {e}")
+        return None, None
 
 def main():
     st.title("Financial Projection Tool")
@@ -212,8 +212,15 @@ def main():
                 st.subheader("Consolidated Projection Preview")
                 st.dataframe(consolidated_projection.head())
 
-                if st.button("Save Projections to Excel"):
-                    save_to_excel(venues_data_with_period, consolidated_projection, sport)
+                excel_file, filename = save_to_excel_for_download(venues_data_with_period, consolidated_projection, sport)
+
+                if excel_file:
+                    st.download_button(
+                        label="Download Projections as Excel",
+                        data=excel_file.getvalue(),
+                        file_name=filename,
+                        mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+                    )
 
                 st.subheader("Projection Summary")
                 st.write(f"**Sport:** {sport}")
