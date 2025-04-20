@@ -77,6 +77,9 @@ def generate_venue_projection(start_date, base_projection, num_months):
         st.error("Error: 'Metric' column not found in the base projection data.")
         return pd.DataFrame()
 
+    # Ensure no duplicate column names in base_projection
+    base_projection = base_projection.loc[:, ~base_projection.columns.duplicated()]
+
     metric_values = base_projection.set_index('Metric').drop(columns=['Month-Year'], errors='ignore')
 
     for i in range(1, num_months + 1):
