@@ -77,60 +77,59 @@ def generate_venue_projection(start_date, base_projection, num_months):
         st.error("Error: 'Metric' column not found in the base projection data.")
         return pd.DataFrame()
 
-    # Ensure no duplicate column names in base_projection
-    base_projection = base_projection.loc[:, ~base_projection.columns.duplicated()]
-
     metric_values = base_projection.set_index('Metric').drop(columns=['Month-Year'], errors='ignore')
 
     for i in range(1, num_months + 1):
         month_col_name = f"Month {i}"
         if month_col_name in metric_values.columns:
-            venue_projection = pd.concat(
-                [venue_projection, metric_values[month_col_name].rename(month_col_name)], axis=1
-            )
+            month_data = metric_values[month_col_name].to_dict()
+            for metric, value in month_data.items():
+                if metric not in venue_projection.columns:
+                    venue_projection[metric] = np.nan
+                # Ensure the row exists before assigning
+                if i - 1 < len(venue_projection):
+                    venue_projection.loc[i - 1, metric] = value
         else:
             st.warning(f"Warning: Could not find column '{month_col_name}' in base projection.")
-            venue_projection[month_col_name] = np.nan
+            for metric in metric_values.index:
+                if metric not in venue_projection.columns:
+                    venue_projection[metric] = np.nan
+                if i - 1 < len(venue_projection):
+                    venue_projection.loc[i - 1, metric] = np.nan
 
-    # Transpose the projection to have months as rows and metrics as columns
-    transposed_projection = venue_projection.set_index('Month-Year').T.reset_index()
-    transposed_projection.rename(columns={'index': 'Metric'}, inplace=True)
-
-    return transposed_projection
-
+    return venue_projection.reset_index(drop=True)
 
 def consolidate_projections(venues_data, all_dates):
     """
     Consolidate projections from multiple venues over a common date range.
-    The consolidated projection multiplies the values by the number of venues.
     """
     if not venues_data:
-        return pd.DataFrame({'Metric': [], 'Month-Year': []})
+        return pd.DataFrame({'Month-Year': pd.to_datetime([])})
 
-    # Initialize consolidated DataFrame with metrics and months
+    consolidated = pd.DataFrame({'Date': all_dates})
+    consolidated['Month-Year'] = consolidated['Date'].dt.strftime('%b-%Y')
+
     all_metrics = set()
     for venue_data in venues_data:
         if not venue_data.empty and 'Metric' in venue_data.columns:
             all_metrics.update(venue_data['Metric'].unique())
+        else:
+            for col in venue_data.columns:
+                if col not in ['Date', 'Month-Year']:
+                    all_metrics.add(col)
 
-    consolidated = pd.DataFrame({'Metric': list(all_metrics)})
+    for metric in all_metrics:
+        consolidated[metric] = 0.0
 
-    for date in all_dates:
-        month_year = date.strftime('%b-%Y')
-        consolidated[month_year] = 0.0
-
-    # Add up projections for all venues
     for venue_data in venues_data:
         if not venue_data.empty:
-            for month in consolidated.columns[1:]:  # Skip 'Metric' column
-                if month in venue_data.columns:
-                    consolidated[month] += venue_data[month].fillna(0)
+            merged = pd.merge(consolidated, venue_data, on='Date', how='left')
+            for metric in all_metrics:
+                matching_cols = [col for col in merged.columns if metric.lower() in col.lower()]
+                if matching_cols:
+                    consolidated[metric] += merged[matching_cols].sum(axis=1, min_count=1).fillna(0)
 
-    # Multiply by the number of venues
-    num_venues = len(venues_data)
-    consolidated.iloc[:, 1:] *= num_venues
-
-    return consolidated
+    return consolidated.drop(columns=['Date'])
 
 def save_to_excel_for_download(venue_projections, consolidated_projection, sport):
     """
