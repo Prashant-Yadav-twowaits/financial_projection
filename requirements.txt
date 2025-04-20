@@ -7,4 +7,3 @@ openpyxl
 xlrd
 streamlit
 xlsxwriter
-plotly
