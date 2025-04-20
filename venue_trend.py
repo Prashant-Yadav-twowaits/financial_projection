@@ -170,7 +170,7 @@ def main():
             with col1:
                 start_date = st.date_input(f"Start date for venue {i+1}", key=f"start_date_{i}")
             with col2:
-                projection_period = st.number_input(f"Projection time period (in months) for venue {i+1}", min_value=1, step=1, value=12, key=f"period_{i}")
+                projection_period = st.number_input(f"Projection time period (in months) for venue {i+1}", min_value=1, step=1, value=36, key=f"period_{i}")
 
             try:
                 venue_projection = generate_venue_projection(
@@ -192,7 +192,7 @@ def main():
 
         if venues_data_with_period:
             st.subheader("Overall Consolidation")
-            overall_projection_period = st.number_input("Enter the overall consolidation time period (in months)", min_value=1, step=1, value=24)
+            overall_projection_period = st.number_input("Enter the overall consolidation time period (in months)", min_value=1, step=1, value=36)
 
             # Determine the common date range for consolidation
             if all_start_dates:
@@ -218,7 +218,8 @@ def main():
                 st.write(f"**Sport:** {sport}")
                 st.write(f"**Number of venues:** {num_venues}")
                 for i, (data, period) in enumerate(venues_data_with_period):
-                    st.write(f"  - **Venue {i+1}:** Projection period - {period} months, Start Date - {data['Month-Year'].iloc[0] if not data.empty else 'N/A'}")
+                    start_date = all_start_dates[i]
+                    st.write(f"  - **Venue {i+1}:** Projection period - {period} months, Start Date - {start_date.strftime('%b-%Y') if start_date else 'N/A'}")
                 st.write(f"**Overall consolidation period:** {overall_projection_period} months")
 
             else:
