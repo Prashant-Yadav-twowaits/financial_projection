@@ -76,16 +76,25 @@ def generate_venue_projection(start_date, base_projection, num_months):
     metric_values = base_projection.set_index('Metric').drop(columns=['Month-Year'], errors='ignore')
     transposed_data = pd.DataFrame()
 
+    month_year_list = []  # Track month-year values for the new column
+
     for i in range(1, num_months + 1):
         month_col_name = f"Month {i}"
+        month_year = (start_date + relativedelta(months=i-1)).strftime('%b-%Y')
+        month_year_list.append(month_year)
+
         if month_col_name in metric_values.columns:
-            transposed_data[f"{(start_date + relativedelta(months=i-1)).strftime('%b-%Y')}"] = metric_values[month_col_name]
+            transposed_data[month_year] = metric_values[month_col_name]
         else:
             st.warning(f"Warning: Could not find column '{month_col_name}' in base projection.")
-            transposed_data[f"{(start_date + relativedelta(months=i-1)).strftime('%b-%Y')}"] = np.nan
+            transposed_data[month_year] = np.nan
 
     # Add metrics as the first column
     transposed_data.insert(0, 'Metric', metric_values.index)
+
+    # Add 'Month-Year' column for tracking
+    transposed_data['Month-Year'] = month_year_list
+
     return transposed_data.reset_index(drop=True)
 
 def consolidate_projections(venues_data, all_dates):
