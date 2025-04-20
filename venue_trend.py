@@ -18,7 +18,7 @@ def load_projections(uploaded_file):
 
             # Get all sheet names
             all_sheets = xl.sheet_names
-            st.info(f"Available sheets in the Excel file: {all_sheets}")
+            # st.info(f"Available sheets in the Excel file: {all_sheets}")
 
             # Create a dictionary to store projections for each sport
             projections = {}
@@ -41,7 +41,7 @@ def load_projections(uploaded_file):
                             sport_data.reset_index(inplace=True)
                             sport_data.rename(columns={'index': 'Metric'}, inplace=True)
 
-                            st.info(f"Columns loaded for {sport}: {sport_data.columns.tolist()}")
+                            # st.info(f"Columns loaded for {sport}: {sport_data.columns.tolist()}")
                             projections[sport] = sport_data
                             st.success(f"Loaded projection data for {sport} from sheet '{sport}'")
                             found_any_sport = True
